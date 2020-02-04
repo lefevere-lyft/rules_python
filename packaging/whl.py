@@ -14,13 +14,13 @@
 """The whl modules defines classes for interacting with Python packages."""
 
 import argparse
+import email
 import json
 import os
 import pkg_resources
 import re
 import zipfile
-
-
+import sys
 class Wheel(object):
 
   def __init__(self, path):
@@ -55,6 +55,26 @@ class Wheel(object):
     #      google_cloud-0.27.0.dist-info
     return '{}-{}.dist-info'.format(self.distribution(), self.version())
 
+  def _purelib_dir(self):
+    return '{}-{}.data/purelib'.format(self.distribution(), self.version())
+
+  def imports_path(self):
+    if os.path.isdir(os.path.join(self.expand_directory_, self._purelib_dir())):
+      return self._purelib_dir()
+    return "."
+
+  def handle_namespaces(self):
+    ns_packages_path = os.path.join(self.expand_directory_, self._dist_info(), "namespace_packages.txt")
+    if not os.path.isfile(ns_packages_path):
+      return
+    with open(ns_packages_path) as f:
+      for line in f.readlines():
+        ns = line.strip().replace(".", "/")
+        if not line:
+          continue
+        with open(os.path.join(self.expand_directory_, ns, "__init__.py"), "w") as w:
+          w.write("__path__ = __import__('pkgutil').extend_path(__path__, __name__)")
+
   def metadata(self):
     # Extract the structured data from metadata.json in the WHL's dist-info
     # directory.
@@ -67,7 +87,7 @@ class Wheel(object):
           pass
       # fall back to METADATA file (https://www.python.org/dev/peps/pep-0427/)
       with whl.open(self._dist_info() + '/METADATA') as f:
-        return self._parse_metadata(f.read().decode("utf-8"))
+        return self._parse_metadata(f)
 
   def name(self):
     return self.metadata().get('name')
@@ -107,14 +127,51 @@ class Wheel(object):
     return self.metadata().get('extras', [])
 
   def expand(self, directory):
+    self.expand_directory_ = directory
     with zipfile.ZipFile(self.path(), 'r') as whl:
       whl.extractall(directory)
 
   # _parse_metadata parses METADATA files according to https://www.python.org/dev/peps/pep-0314/
-  def _parse_metadata(self, content):
+  def _parse_metadata(self, fileobj):
+    # We could use distlib, but it becomes difficult to use when packaged with subpar.
+    str_meta = fileobj.read()
+    print(type(str_meta))
+    if hasattr(email, "message_from_bytes") and isinstance(str_meta, bytes):
+        msg = email.message_from_bytes(str_meta)
+    else:
+        msg = email.message_from_string(str_meta)
+    meta_dict = {
+        "name": msg.get("name") or "",
+        "extras": list(set(msg.get_all("Provides-Extra") or [])),
+        "run_requires": [],
+    }
+    requires = msg.get_all("Requires-Dist") or []
+    for r in requires:
+      out = {}
+      if ';' in r:
+        req, marker = r.split(";")
+        print(marker)
+        extra = re.search("extra\s*==\s*'([^']*)'|extra\s*==\s*\"([^\"]*)\"", marker)
+        if extra:
+          out["extra"] = extra.group(1)
+          # We remove the "extra" part from the expression. pkg_resources does not provide
+          # an easy way to set it. (The "extra" parameter of evaluate_marker seems ignored in some versions)
+          marker = marker.replace(extra.group(0), "True")
+          marker = re.compile("and\s*True|True\s*and").sub("", marker) 
+        marker = marker.strip()
+        print("marker after:", marker)
+        if marker and marker != "True":
+            out["environment"] = marker
+        out["requires"] = [ req.strip() ]
+      else:
+        out["requires"] = [ r ] 
+      meta_dict["run_requires"].append(out)
+
+    return meta_dict
+	
     # TODO: handle fields other than just name
-    name_pattern = re.compile('Name: (.*)')
-    return { 'name': name_pattern.search(content).group(1) }
+    #name_pattern = re.compile('Name: (.*)')
+    #return { 'name': name_pattern.search(content).group(1) }
 
 
 parser = argparse.ArgumentParser(
@@ -138,6 +195,7 @@ def main():
 
   # Extract the files into the current directory
   whl.expand(args.directory)
+  whl.handle_namespaces()
 
   with open(os.path.join(args.directory, 'BUILD'), 'w') as f:
     f.write("""
@@ -152,7 +210,7 @@ py_library(
     data = glob(["**/*"], exclude=["**/*.py", "**/* *", "BUILD", "WORKSPACE"]),
     # This makes this directory a top-level in the python import
     # search path for anything that depends on this.
-    imports = ["."],
+    imports = ["{imports}"],
     deps = [{dependencies}],
 )
 {extras}""".format(
@@ -161,6 +219,7 @@ py_library(
     'requirement("%s")' % d
     for d in whl.dependencies()
   ]),
+  imports=whl.imports_path(),
   extras='\n\n'.join([
     """py_library(
     name = "{extra}",
