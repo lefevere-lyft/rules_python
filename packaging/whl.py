@@ -135,7 +135,6 @@ class Wheel(object):
   def _parse_metadata(self, fileobj):
     # We could use distlib, but it becomes difficult to use when packaged with subpar.
     str_meta = fileobj.read()
-    print(type(str_meta))
     if hasattr(email, "message_from_bytes") and isinstance(str_meta, bytes):
         msg = email.message_from_bytes(str_meta)
     else:
@@ -150,28 +149,22 @@ class Wheel(object):
       out = {}
       if ';' in r:
         req, marker = r.split(";")
-        print(marker)
         extra = re.search("extra\s*==\s*'([^']*)'|extra\s*==\s*\"([^\"]*)\"", marker)
         if extra:
           out["extra"] = extra.group(1)
           # We remove the "extra" part from the expression. pkg_resources does not provide
           # an easy way to set it. (The "extra" parameter of evaluate_marker seems ignored in some versions)
           marker = marker.replace(extra.group(0), "True")
-          marker = re.compile("and\s*True|True\s*and").sub("", marker) 
+          marker = re.compile("and\s*True|True\s*and").sub("", marker)
         marker = marker.strip()
-        print("marker after:", marker)
         if marker and marker != "True":
             out["environment"] = marker
         out["requires"] = [ req.strip() ]
       else:
-        out["requires"] = [ r ] 
+        out["requires"] = [ r ]
       meta_dict["run_requires"].append(out)
 
     return meta_dict
-	
-    # TODO: handle fields other than just name
-    #name_pattern = re.compile('Name: (.*)')
-    #return { 'name': name_pattern.search(content).group(1) }
 
 
 parser = argparse.ArgumentParser(
@@ -189,6 +182,9 @@ parser.add_argument('--directory', action='store', default='.',
 parser.add_argument('--extras', action='append',
                     help='The set of extras for which to generate library targets.')
 
+parser.add_argument('--srcs_version', default='',
+                    help='If set, add a srcs_version attribute to the py_library rules.')
+
 def main():
   args = parser.parse_args()
   whl = Wheel(args.whl)
@@ -197,6 +193,9 @@ def main():
   whl.expand(args.directory)
   whl.handle_namespaces()
 
+  srcs_version = ''
+  if args.srcs_version:
+      srcs_version = '    srcs_version = "{}",\n'.format(args.srcs_version)
   with open(os.path.join(args.directory, 'BUILD'), 'w') as f:
     f.write("""
 package(default_visibility = ["//visibility:public"])
@@ -212,9 +211,10 @@ py_library(
     # search path for anything that depends on this.
     imports = ["{imports}"],
     deps = [{dependencies}],
-)
+{srcs_version})
 {extras}""".format(
   requirements=args.requirements,
+  srcs_version=srcs_version,
   dependencies=','.join([
     'requirement("%s")' % d
     for d in whl.dependencies()
@@ -226,7 +226,8 @@ py_library(
     deps = [
         ":pkg",{deps}
     ],
-)""".format(extra=extra,
+{srcs_version})""".format(extra=extra,
+            srcs_version=srcs_version,
             deps=','.join([
                 'requirement("%s")' % dep
                 for dep in whl.dependencies(extra)

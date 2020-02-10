@@ -102,6 +102,9 @@ parser.add_argument('--output', action='store',
 parser.add_argument('--directory', action='store',
                     help=('The directory into which to put .whl files.'))
 
+parser.add_argument('--srcs_version', default='',
+                    help=('The version of python supported by these files.'))
+
 def determine_possible_extras(whls):
   """Determines the list of possible "extras" for each .whl
 
@@ -180,6 +183,9 @@ def main():
   def whl_library(wheel):
     # Indentation here matters.  whl_library must be within the scope
     # of the function below.  We also avoid reimporting an existing WHL.
+    srcs_version = ''
+    if args.srcs_version:
+        srcs_version = '    srcs_version = "{srcs_version}",\n    '.format(srcs_version=args.srcs_version)
     return """
   if "{repo_name}" not in native.existing_rules():
     whl_library(
@@ -187,14 +193,15 @@ def main():
         python_interpreter = "{python_interpreter}",
         whl = "@{name}//:{path}",
         requirements = "@{name}//:requirements.bzl",
-        extras = [{extras}]
-    )""".format(name=args.name, repo_name=repository_name(wheel),
+        extras = [{extras}],
+    {srcs_version})""".format(name=args.name, repo_name=repository_name(wheel),
                 python_interpreter=args.python_interpreter,
                 path=wheel.basename(),
                 extras=','.join([
                   '"%s"' % extra
                   for extra in possible_extras.get(wheel, [])
-                ]))
+                ]),
+                srcs_version=srcs_version)
 
   whl_targets = ','.join([
     ','.join([

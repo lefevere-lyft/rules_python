@@ -31,6 +31,9 @@ def _whl_impl(repository_ctx):
             for extra in repository_ctx.attr.extras
         ]
 
+    if repository_ctx.attr.srcs_version:
+        args += [ "--srcs_version", repository_ctx.attr.srcs_version ]
+
     result = repository_ctx.execute(args)
     if result.return_code:
         fail("whl_library failed: %s (%s)" % (result.stdout, result.stderr))
@@ -55,6 +58,9 @@ The name of the <code>pip_import</code> repository rule from which to load this
 The path to the <code>.whl</code> file. The name is expected to follow [this
 convention](https://www.python.org/dev/peps/pep-0427/#file-name-convention)).
 """,
+        ),
+        "srcs_version": attr.string(
+            doc = "Set the srcs_version attribute for all the py_library in this wheel (optional).",
         ),
         "_script": attr.label(
             executable = True,

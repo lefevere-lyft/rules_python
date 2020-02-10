@@ -23,7 +23,7 @@ def _pip_import_impl(repository_ctx):
     repository_ctx.file("BUILD", "")
 
     # To see the output, pass: quiet=False
-    result = repository_ctx.execute([
+    args = [
         repository_ctx.attr.python_interpreter,
         repository_ctx.path(repository_ctx.attr._script),
         "--python_interpreter",
@@ -36,7 +36,13 @@ def _pip_import_impl(repository_ctx):
         repository_ctx.path("requirements.bzl"),
         "--directory",
         repository_ctx.path(""),
-    ])
+    ]
+    if repository_ctx.attr.srcs_version:
+        args += [
+            "--srcs_version",
+            repository_ctx.attr.srcs_version,
+        ]
+    result = repository_ctx.execute(args)
 
     if result.return_code:
         fail("pip_import failed: %s (%s)" % (result.stdout, result.stderr))
@@ -51,6 +57,9 @@ wheels.
             mandatory = True,
             allow_single_file = True,
             doc = "The label of the requirements.txt file.",
+        ),
+        "srcs_version": attr.string(
+            doc = "The srcs_version attribute for all the whl in this import (optional).",
         ),
         "_script": attr.label(
             executable = True,
