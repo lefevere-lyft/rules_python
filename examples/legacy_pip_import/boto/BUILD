@@ -12,15 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pip
-import unittest
+load("@boto_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_test")
 
+package(default_visibility = ["//visibility:public"])
 
-class VersionTest(unittest.TestCase):
+licenses(["notice"])  # Apache 2.0
 
-  def test_version(self):
-    self.assertEqual(pip.__version__, '9.0.3')
-
-
-if __name__ == '__main__':
-  unittest.main()
+py_test(
+    name = "boto_test",
+    srcs = ["boto_test.py"],
+    python_version = "PY2",
+    deps = [
+        requirement("boto3"),
+        requirement("pip"),
+        # six is a transitive dependency via python-dateutil. Explicitly depend
+        # on it to work around issue #70; see issue #98.
+        requirement("six"),
+    ],
+)

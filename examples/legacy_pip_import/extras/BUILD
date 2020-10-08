@@ -11,22 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+load("@extras_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_test")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
 
-load("@examples_helloworld//:requirements.bzl", "requirement")
-load("//python:defs.bzl", "py_library", "py_test")
-
-py_library(
-    name = "helloworld",
-    srcs = ["helloworld.py"],
-    deps = [requirement("futures")],
-)
-
 py_test(
-    name = "helloworld_test",
-    srcs = ["helloworld_test.py"],
+    name = "extras_test",
+    srcs = ["extras_test.py"],
     python_version = "PY2",
-    deps = [":helloworld"],
+    deps = [
+        requirement("google-cloud-language"),
+        # Make sure that we can resolve the "extra" dependency
+        requirement("googleapis-common-protos[grpc]"),
+    ],
 )

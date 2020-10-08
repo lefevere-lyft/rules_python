@@ -27,6 +27,7 @@ filegroup(
         "LICENSE",
         "internal_deps.bzl",
         "internal_setup.bzl",
+        "//python/pip_install:distribution",
         "//python:distribution",
         "//tools:distribution",
     ],

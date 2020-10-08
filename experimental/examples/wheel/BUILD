@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-package(default_visibility = ["//visibility:public"])
-
-licenses(["notice"])  # Apache 2.0
 
 load("//experimental/python:wheel.bzl", "py_package", "py_wheel")
 load("//python:defs.bzl", "py_library", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])  # Apache 2.0
 
 py_library(
     name = "main",
@@ -26,7 +27,7 @@ py_library(
         "//experimental/examples/wheel/lib:module_with_data",
         # Example dependency which is not packaged in the wheel
         # due to "packages" filter on py_package rule.
-        "//examples/helloworld",
+        "//tests/load_from_macro:foo",
     ],
 )
 
@@ -76,6 +77,10 @@ py_wheel(
     description_file = "README.md",
     # Package data. We're building "example_customized-0.0.1-py3-none-any.whl"
     distribution = "example_customized",
+    entry_points = {
+        "console_scripts": ["another = foo.bar:baz"],
+        "group2": ["second = second.main:s", "first = first.main:f"]
+    },
     homepage = "www.example.com",
     license = "Apache 2.0",
     python_tag = "py3",

@@ -11,20 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+import boto3
+import pip
+import unittest
 
-load("@examples_boto//:requirements.bzl", "requirement")
-load("//python:defs.bzl", "py_test")
 
-py_test(
-    name = "boto_test",
-    srcs = ["boto_test.py"],
-    deps = [
-        requirement("boto3"),
-        # six is a transitive dependency via python-dateutil. Explicitly depend
-        # on it to work around issue #70; see issue #98.
-        requirement("six"),
-    ],
-)
+class BotoTest(unittest.TestCase):
+
+  def test_version(self):
+    # Just the minimal assertion that the boto3 import worked
+    self.assertEqual(boto3.__version__, '1.4.7')
+    # Regression test that the pip version is the one requested
+    # see https://github.com/bazelbuild/rules_python/pull/1#discussion_r138349892
+    self.assertEqual(pip.__version__, '9.0.3')
+
+
+if __name__ == '__main__':
+  unittest.main()

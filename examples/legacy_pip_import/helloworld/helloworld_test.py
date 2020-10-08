@@ -11,15 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+import helloworld
+import unittest
 
-load("@examples_version//:requirements.bzl", "requirement")
-load("//python:defs.bzl", "py_test")
 
-py_test(
-    name = "version_test",
-    srcs = ["version_test.py"],
-    deps = [requirement("pip")],
-)
+class HelloWorldTest(unittest.TestCase):
+
+  def test_helloworld(self):
+    hw = helloworld.HelloWorld()
+    hw.SayHello()
+
+  def test_helloworld_async(self):
+    hw = helloworld.HelloWorld()
+    hw.SayHelloAsync()
+    hw.Stop()
+
+  def test_helloworld_multiple(self):
+    hw = helloworld.HelloWorld()
+    hw.SayHelloAsync()
+    hw.SayHelloAsync()
+    hw.SayHelloAsync()
+    hw.SayHelloAsync()
+    hw.Stop()
+
+
+if __name__ == '__main__':
+  unittest.main()
