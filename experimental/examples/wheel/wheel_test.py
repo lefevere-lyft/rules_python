@@ -70,12 +70,14 @@ class WheelTest(unittest.TestCase):
                 'example_customized-0.0.1.dist-info/WHEEL')
             metadata_contents = zf.read(
                 'example_customized-0.0.1.dist-info/METADATA')
+            entry_point_contents = zf.read(
+                'example_customized-0.0.1.dist-info/entry_points.txt')
             # The entries are guaranteed to be sorted.
             self.assertEquals(record_contents, b"""\
 example_customized-0.0.1.dist-info/METADATA,sha256=TeeEmokHE2NWjkaMcVJuSAq4_AXUoIad2-SLuquRmbg,372
 example_customized-0.0.1.dist-info/RECORD,,
-example_customized-0.0.1.dist-info/WHEEL,sha256=F01lGfVCzcXUzzQHzUkBmXAcu_TXd5zqMLrvrspncJo,85
-example_customized-0.0.1.dist-info/entry_points.txt,sha256=olLJ8FK88aft2pcdj4BD05F8Xyz83Mo51I93tRGT2Yk,74
+example_customized-0.0.1.dist-info/WHEEL,sha256=sobxWSyDDkdg_rinUth-jxhXHqoNqlmNMJY3aTZn2Us,91
+example_customized-0.0.1.dist-info/entry_points.txt,sha256=mEWsq4sMoyqR807QV8Z3KPocGfKvtgTo1lBFTRb6b78,150
 experimental/examples/wheel/lib/data.txt,sha256=9vJKEdfLu8bZRArKLroPZJh1XKkK3qFMXiM79MBL2Sg,12
 experimental/examples/wheel/lib/module_with_data.py,sha256=K_IGAq_CHcZX0HUyINpD1hqSKIEdCn58d9E9nhWF2EA,636
 experimental/examples/wheel/lib/simple_module.py,sha256=72-91Dm6NB_jw-7wYQt7shzdwvk5RB0LujIah8g7kr8,636
@@ -83,7 +85,7 @@ experimental/examples/wheel/main.py,sha256=E0xCyiPg6fCo4IrFmqo_tqpNGtk1iCewobqD0
 """)
             self.assertEquals(wheel_contents, b"""\
 Wheel-Version: 1.0
-Generator: wheelmaker 1.0
+Generator: bazel-wheelmaker 1.0
 Root-Is-Purelib: true
 Tag: py3-none-any
 """)
@@ -101,6 +103,14 @@ Requires-Dist: pytest
 
 This is a sample description of a wheel.
 """)
+            self.assertEquals(entry_point_contents, b"""\
+[console_scripts]
+another = foo.bar:baz
+customized_wheel = experimental.examples.wheel.main:main
+
+[group2]
+first = first.main:f
+second = second.main:s""")
 
     def test_custom_package_root_wheel(self):
         filename = os.path.join(os.environ['TEST_SRCDIR'],
@@ -152,6 +162,24 @@ This is a sample description of a wheel.
                  'example_custom_package_root_multi_prefix_reverse_order-0.0.1.dist-info/WHEEL',
                  'example_custom_package_root_multi_prefix_reverse_order-0.0.1.dist-info/METADATA',
                  'example_custom_package_root_multi_prefix_reverse_order-0.0.1.dist-info/RECORD'])
+
+    def test_python_requires_wheel(self):
+        filename = os.path.join(os.environ['TEST_SRCDIR'],
+                                'rules_python', 'experimental',
+                                'examples', 'wheel',
+                                'example_python_requires_in_a_package-0.0.1-py3-none-any.whl')
+        with zipfile.ZipFile(filename) as zf:
+            metadata_contents = zf.read(
+                'example_python_requires_in_a_package-0.0.1.dist-info/METADATA')
+            # The entries are guaranteed to be sorted.
+            self.assertEquals(metadata_contents, b"""\
+Metadata-Version: 2.1
+Name: example_python_requires_in_a_package
+Version: 0.0.1
+Requires-Python: >=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*
+
+UNKNOWN
+""")
 
 
 if __name__ == '__main__':
